@@ -27,6 +27,7 @@ import {
 import { Plus, Search, Calendar, FolderOpen, X } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { getRoleLabel } from '@/lib/utils';
 
 export default function CasesPage() {
   const { profile } = useAuth();
@@ -268,7 +269,7 @@ export default function CasesPage() {
                       {users.map(user => (
                         <label key={user.id} className="flex items-center gap-2 cursor-pointer">
                           <input type="checkbox" checked={formData.assigned_users.includes(user.id)} onChange={() => toggleUserAssignment(user.id)} disabled={creating} className="rounded border-slate-300" />
-                          <span className="text-sm text-slate-800">{user.full_name} <span className="text-slate-400 capitalize">({user.role})</span></span>
+                          <span className="text-sm text-slate-800">{user.full_name} <span className="text-slate-400">({getRoleLabel(user.role)})</span></span>
                         </label>
                       ))}
                     </div>

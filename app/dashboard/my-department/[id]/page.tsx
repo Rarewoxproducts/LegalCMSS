@@ -299,9 +299,9 @@ export default function DepartmentChatPage() {
       <div className="flex flex-col items-center justify-center h-[calc(100vh-8rem)] text-center">
         <Building2 className="w-12 h-12 text-slate-300 mb-4" />
         <p className="text-lg font-semibold text-slate-700">Access Denied</p>
-        <p className="text-sm text-slate-400 mt-1">You are not a member of this department.</p>
+        <p className="text-sm text-slate-400 mt-1">You are not a member of this team.</p>
         <Link href="/dashboard/my-department" className="mt-4 text-sm text-blue-500 hover:text-blue-600">
-          Back to My Departments
+          Back to My Teams
         </Link>
       </div>
     );

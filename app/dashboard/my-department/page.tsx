@@ -104,8 +104,8 @@ export default function MyDepartmentPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">My Department</h2>
-        <p className="text-sm text-slate-500 mt-0.5">Departments you belong to — click to open the chat room</p>
+        <h2 className="text-2xl font-bold text-slate-900">My Team</h2>
+        <p className="text-sm text-slate-500 mt-0.5">Teams you belong to — click to open the chat room</p>
       </div>
 
       {departments.length === 0 ? (
@@ -113,9 +113,9 @@ export default function MyDepartmentPage() {
           <div className="w-14 h-14 rounded-2xl bg-slate-50 flex items-center justify-center mb-4">
             <Building2 className="w-7 h-7 text-slate-300" />
           </div>
-          <p className="text-base font-semibold text-slate-700">Not in any department yet</p>
+          <p className="text-base font-semibold text-slate-700">Not in any team yet</p>
           <p className="text-sm text-slate-400 mt-1 max-w-sm">
-            Ask your admin to add you to a department. Once added, you can chat with your team here.
+            Ask your Head Legal to add you to a team. Once added, you can chat with your team here.
           </p>
         </div>
       ) : (

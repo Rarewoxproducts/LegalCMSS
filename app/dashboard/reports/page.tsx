@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FolderOpen, Calendar, Building2, Users, Download, TrendingUp, Filter } from 'lucide-react';
 import { format } from 'date-fns';
+import { getRoleLabel } from '@/lib/utils';
 
 interface ReportFilters {
   reportType: 'cases' | 'schedule' | 'departments' | 'users';
@@ -84,12 +85,12 @@ export default function ReportsPage() {
         const withCounts = await Promise.all((depts || []).map(async d => {
           const { count: memberCount } = await supabase.from('department_members').select('*', { count: 'exact', head: true }).eq('department_id', d.id);
           const { count: caseCount } = await supabase.from('department_cases').select('*', { count: 'exact', head: true }).eq('department_id', d.id);
-          return { 'Department': d.name, 'Description': d.description || '', 'Members': memberCount || 0, 'Cases': caseCount || 0, 'Created': format(new Date(d.created_at), 'yyyy-MM-dd') };
+          return { 'Team': d.name, 'Description': d.description || '', 'Members': memberCount || 0, 'Cases': caseCount || 0, 'Created': format(new Date(d.created_at), 'yyyy-MM-dd') };
         }));
         data = withCounts;
       } else if (filters.reportType === 'users') {
         const { data: users } = await supabase.from('profiles').select('*').order('full_name');
-        data = (users || []).map(u => ({ 'Full Name': u.full_name, 'Role': u.role, 'External': u.is_external ? 'Yes' : 'No', 'Access Expires': u.access_expires_at ? format(new Date(u.access_expires_at), 'yyyy-MM-dd') : '', 'Created': format(new Date(u.created_at), 'yyyy-MM-dd') }));
+        data = (users || []).map(u => ({ 'Full Name': u.full_name, 'Role': getRoleLabel(u.role), 'External': u.is_external ? 'Yes' : 'No', 'Access Expires': u.access_expires_at ? format(new Date(u.access_expires_at), 'yyyy-MM-dd') : '', 'Created': format(new Date(u.created_at), 'yyyy-MM-dd') }));
       }
       setReportData(data);
     } catch (err) { console.error(err); } finally { setGenerating(false); }
@@ -123,7 +124,7 @@ export default function ReportsPage() {
     { label: 'In Progress', value: stats.inProgressCases, icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Closed', value: stats.closedCases, icon: FolderOpen, color: 'text-slate-500', bg: 'bg-slate-50' },
     { label: 'Schedule Items', value: stats.totalScheduleItems, icon: Calendar, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Departments', value: stats.totalDepartments, icon: Building2, color: 'text-orange-600', bg: 'bg-orange-50' },
+    { label: 'Teams', value: stats.totalDepartments, icon: Building2, color: 'text-orange-600', bg: 'bg-orange-50' },
     { label: 'Users', value: stats.totalUsers, icon: Users, color: 'text-slate-600', bg: 'bg-slate-100' },
   ];
 
@@ -131,7 +132,7 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Reports</h2>
-        <p className="text-sm text-slate-500 mt-0.5">Generate and export reports for cases, schedules, departments, and users</p>
+        <p className="text-sm text-slate-500 mt-0.5">Generate and export reports for cases, schedules, teams, and users</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
@@ -164,7 +165,7 @@ export default function ReportsPage() {
                 <SelectContent>
                   <SelectItem value="cases">Cases</SelectItem>
                   <SelectItem value="schedule">Schedule</SelectItem>
-                  <SelectItem value="departments">Departments</SelectItem>
+                  <SelectItem value="departments">Teams</SelectItem>
                   <SelectItem value="users">Users</SelectItem>
                 </SelectContent>
               </Select>

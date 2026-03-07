@@ -22,6 +22,7 @@ import {
   FileText,
   MessagesSquare,
 } from 'lucide-react';
+import { getRoleLabel } from '@/lib/utils';
 
 export default function DashboardLayout({
   children,
@@ -59,8 +60,8 @@ export default function DashboardLayout({
     { name: 'Calendar', href: profile.role === 'admin' ? '/dashboard/schedule' : '/dashboard/my-schedule', icon: Calendar },
     { name: 'Cases', href: '/dashboard/cases', icon: FolderOpen },
     { name: 'Documents', href: '/dashboard/documents', icon: FileText },
-    { name: 'My Department', href: '/dashboard/my-department', icon: MessagesSquare },
-    { name: 'Departments', href: '/dashboard/departments', icon: Building2, adminOnly: true },
+    { name: 'My Team', href: '/dashboard/my-department', icon: MessagesSquare },
+    { name: 'Teams', href: '/dashboard/departments', icon: Building2, adminOnly: true },
     { name: 'Reports', href: '/dashboard/reports', icon: BarChart3, adminOnly: true },
   ];
 
@@ -158,7 +159,7 @@ export default function DashboardLayout({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-800 truncate">{profile.full_name}</p>
-                <p className="text-[11px] text-slate-400 capitalize">{profile.role}</p>
+                <p className="text-[11px] text-slate-400">{getRoleLabel(profile.role)}</p>
               </div>
             </div>
             <button
@@ -199,7 +200,7 @@ export default function DashboardLayout({
               <div className="hidden sm:flex items-center gap-3 pl-3 border-l border-slate-200">
                 <div className="text-right">
                   <p className="text-sm font-semibold text-slate-800">{profile.full_name}</p>
-                  <p className="text-[11px] text-slate-400 capitalize">{profile.role}</p>
+                  <p className="text-[11px] text-slate-400">{getRoleLabel(profile.role)}</p>
                 </div>
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-700 to-slate-900 flex items-center justify-center text-white text-xs font-semibold">
                   {initials}

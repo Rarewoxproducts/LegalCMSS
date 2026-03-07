@@ -171,7 +171,7 @@ export default function DashboardPage() {
     ...(profile?.role === 'admin'
       ? [
           {
-            name: 'Departments',
+            name: 'Teams',
             description: 'Manage teams',
             icon: Building2,
             href: '/dashboard/departments',

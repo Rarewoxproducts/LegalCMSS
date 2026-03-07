@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Users, Briefcase, Pencil, Trash2, UserPlus, Building2 } from 'lucide-react';
+import { getRoleLabel } from '@/lib/utils';
 
 interface Department {
   id: string; name: string; description: string; created_at: string; updated_at: string;
@@ -70,7 +71,7 @@ export default function DepartmentsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this department? This will remove all member and case associations.')) return;
+    if (!confirm('Delete this team? This will remove all member and case associations.')) return;
     try {
       await supabase.from('departments').delete().eq('id', id);
       fetchDepartments();
@@ -193,29 +194,29 @@ export default function DepartmentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Departments</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Organize users into departments and manage case access</p>
+          <h2 className="text-2xl font-bold text-slate-900">Teams</h2>
+          <p className="text-sm text-slate-500 mt-0.5">Organize users into teams and manage case access</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={open => { setDialogOpen(open); if (!open) resetForm(); }}>
           <DialogTrigger asChild>
             <Button className="bg-slate-900 hover:bg-slate-800 text-sm">
               <Plus className="w-4 h-4 mr-2" />
-              New Department
+              New Team
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingDept ? 'Edit Department' : 'Create Department'}</DialogTitle>
-              <DialogDescription>{editingDept ? 'Update department details' : 'Add a new department to organize your team'}</DialogDescription>
+              <DialogTitle>{editingDept ? 'Edit Team' : 'Create Team'}</DialogTitle>
+              <DialogDescription>{editingDept ? 'Update team details' : 'Add a new team to organize your members'}</DialogDescription>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 mt-2">
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-slate-600">Department Name *</Label>
+                <Label className="text-xs font-medium text-slate-600">Team Name *</Label>
                 <Input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required placeholder="e.g., Litigation, Corporate, Family Law" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-slate-600">Description</Label>
-                <Textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} className="resize-none" placeholder="Brief description of the department's focus" />
+                <Textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} rows={3} className="resize-none" placeholder="Brief description of the team's focus" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button type="button" variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancel</Button>
@@ -229,8 +230,8 @@ export default function DepartmentsPage() {
       {departments.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-100 flex flex-col items-center justify-center py-20 text-slate-400">
           <Building2 className="w-12 h-12 mb-3 text-slate-300" />
-          <p className="text-sm">No departments created yet</p>
-          <p className="text-xs mt-1 text-slate-300">Create your first department to get started</p>
+          <p className="text-sm">No teams created yet</p>
+          <p className="text-xs mt-1 text-slate-300">Create your first team to get started</p>
         </div>
       ) : (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
@@ -282,7 +283,7 @@ export default function DepartmentsPage() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Members — {selectedDept?.name}</DialogTitle>
-            <DialogDescription>Add or remove members from this department</DialogDescription>
+            <DialogDescription>Add or remove members from this team</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAddMember} className="space-y-3 mt-2">
             <div className="grid grid-cols-3 gap-3">
@@ -291,7 +292,7 @@ export default function DepartmentsPage() {
                 <Select value={memberFormData.user_id} onValueChange={v => setMemberFormData({...memberFormData, user_id: v})}>
                   <SelectTrigger className="text-sm"><SelectValue placeholder="Select user" /></SelectTrigger>
                   <SelectContent>
-                    {availableUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name} ({u.role})</SelectItem>)}
+                    {availableUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.full_name} ({getRoleLabel(u.role || '')})</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -314,7 +315,7 @@ export default function DepartmentsPage() {
           <div className="mt-4 space-y-2">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Current Members ({deptMembers.length})</p>
             {deptMembers.length === 0 ? (
-              <p className="text-sm text-slate-400 py-4 text-center">No members in this department</p>
+              <p className="text-sm text-slate-400 py-4 text-center">No members in this team</p>
             ) : (
               deptMembers.map(member => (
                 <div key={member.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
@@ -326,7 +327,7 @@ export default function DepartmentsPage() {
                       <p className="text-sm font-medium text-slate-800">{member.user?.full_name}</p>
                       <div className="flex gap-1.5 mt-0.5">
                         <span className="text-[10px] bg-white border border-slate-200 text-slate-600 px-1.5 py-0.5 rounded capitalize">{member.role}</span>
-                        <span className="text-[10px] bg-white border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded capitalize">{member.user?.role}</span>
+                        <span className="text-[10px] bg-white border border-slate-200 text-slate-500 px-1.5 py-0.5 rounded">{getRoleLabel(member.user?.role || '')}</span>
                       </div>
                     </div>
                   </div>
@@ -342,7 +343,7 @@ export default function DepartmentsPage() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Cases — {selectedDept?.name}</DialogTitle>
-            <DialogDescription>Assign or unassign cases to this department</DialogDescription>
+            <DialogDescription>Assign or unassign cases to this team</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleAssignCase} className="space-y-3 mt-2">
             <div className="space-y-1">
@@ -361,7 +362,7 @@ export default function DepartmentsPage() {
           <div className="mt-4 space-y-2">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Assigned Cases ({deptCases.length})</p>
             {deptCases.length === 0 ? (
-              <p className="text-sm text-slate-400 py-4 text-center">No cases assigned to this department</p>
+              <p className="text-sm text-slate-400 py-4 text-center">No cases assigned to this team</p>
             ) : (
               deptCases.map(c => (
                 <div key={c.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">

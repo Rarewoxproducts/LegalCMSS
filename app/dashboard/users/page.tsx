@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Users, Search, Pencil, ShieldAlert, UserCog } from 'lucide-react';
 import { format } from 'date-fns';
+import { getRoleLabel } from '@/lib/utils';
 
 interface UserWithEmail extends Profile {
   email?: string;
@@ -163,9 +164,9 @@ export default function UsersPage() {
             <SelectTrigger className="h-9 text-sm border-slate-200 bg-slate-50"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Roles</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="lawyer">Lawyer</SelectItem>
-              <SelectItem value="viewer">Viewer</SelectItem>
+              <SelectItem value="admin">Head Legal</SelectItem>
+              <SelectItem value="lawyer">Counsel</SelectItem>
+              <SelectItem value="viewer">External Counsel</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -222,8 +223,8 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td className="px-5 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full capitalize ${getRoleStyle(user.role || '')}`}>
-                          {user.role}
+                        <span className={`inline-flex items-center px-2.5 py-1 text-[11px] font-semibold rounded-full ${getRoleStyle(user.role || '')}`}>
+                          {getRoleLabel(user.role || '')}
                         </span>
                       </td>
                       <td className="px-5 py-4 hidden md:table-cell">
@@ -282,9 +283,9 @@ export default function UsersPage() {
               <Select value={formData.role} onValueChange={v => setFormData({...formData, role: v})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="lawyer">Lawyer</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="admin">Head Legal</SelectItem>
+                  <SelectItem value="lawyer">Counsel</SelectItem>
+                  <SelectItem value="viewer">External Counsel</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -324,9 +325,9 @@ export default function UsersPage() {
               <Select value={editFormData.role} onValueChange={v => setEditFormData({...editFormData, role: v})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Admin</SelectItem>
-                  <SelectItem value="lawyer">Lawyer</SelectItem>
-                  <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="admin">Head Legal</SelectItem>
+                  <SelectItem value="lawyer">Counsel</SelectItem>
+                  <SelectItem value="viewer">External Counsel</SelectItem>
                 </SelectContent>
               </Select>
             </div>

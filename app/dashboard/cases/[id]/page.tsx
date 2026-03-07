@@ -29,6 +29,7 @@ import {
 import { ArrowLeft, User, Calendar, FileText, MessageSquare, UserPlus, Upload, Download, Trash2, Search, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { getRoleLabel } from '@/lib/utils';
 
 export default function CaseDetailPage() {
   const { profile } = useAuth();
@@ -420,7 +421,7 @@ export default function CaseDetailPage() {
                         <SelectTrigger><SelectValue placeholder="Select a user" /></SelectTrigger>
                         <SelectContent>
                           {unassignedUsers.map(u => (
-                            <SelectItem key={u.id} value={u.id}>{u.full_name} ({u.role})</SelectItem>
+                            <SelectItem key={u.id} value={u.id}>{u.full_name} ({getRoleLabel(u.role)})</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -448,7 +449,7 @@ export default function CaseDetailPage() {
                         </div>
                         <div>
                           <p className="text-sm font-medium text-slate-800">{user.full_name}</p>
-                          <p className="text-[11px] text-slate-400 capitalize">{user.role}</p>
+                          <p className="text-[11px] text-slate-400">{getRoleLabel(user.role)}</p>
                         </div>
                       </div>
                       {isAdmin && (
