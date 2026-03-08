@@ -67,7 +67,7 @@ export default function DashboardLayout({
 
   const managementNav = [
     { name: 'Users', href: '/dashboard/users', icon: Users, adminOnly: true },
-    { name: 'Settings', href: '/dashboard', icon: Settings },
+    { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ];
 
   const isActive = (href: string) => {
