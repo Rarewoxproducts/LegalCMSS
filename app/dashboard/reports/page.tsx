@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { FolderOpen, Calendar, Building2, Users, Download, TrendingUp, Filter } from 'lucide-react';
 import { format } from 'date-fns';
 import { getRoleLabel } from '@/lib/utils';
+import ReportsCharts from './charts';
 
 interface ReportFilters {
   reportType: 'cases' | 'schedule' | 'departments' | 'users';
@@ -150,6 +151,8 @@ export default function ReportsPage() {
           ))
         )}
       </div>
+
+      <ReportsCharts />
 
       <div className="bg-white rounded-xl border border-slate-100 overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-50">

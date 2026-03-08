@@ -24,10 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Calendar, FolderOpen, X } from 'lucide-react';
+import { Plus, Search, Calendar, FolderOpen, X, Upload, FileText, Trash2, Tag } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { getRoleLabel } from '@/lib/utils';
+import { getRoleLabel, DOCUMENT_TAGS } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 export default function CasesPage() {
   const { profile } = useAuth();
@@ -50,6 +51,7 @@ export default function CasesPage() {
     status: 'open' as 'open' | 'in_progress' | 'closed',
     assigned_users: [] as string[],
   });
+  const [pendingFiles, setPendingFiles] = useState<Array<{ file: File; tags: string[] }>>([]);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
@@ -152,8 +154,27 @@ export default function CasesPage() {
           formData.assigned_users.map(userId => ({ case_id: caseData.id, user_id: userId }))
         );
       }
+      if (pendingFiles.length > 0 && caseData) {
+        const uploadPromises = pendingFiles.map(pf => new Promise<void>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            try {
+              const { error: docError } = await supabase.from('case_documents').insert({
+                case_id: caseData.id, file_name: pf.file.name, file_url: reader.result as string,
+                file_size: pf.file.size, file_type: pf.file.type, uploaded_by: profile?.id,
+                tags: pf.tags.length > 0 ? pf.tags : null,
+              });
+              if (docError) reject(docError); else resolve();
+            } catch (e) { reject(e); }
+          };
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(pf.file);
+        }));
+        await Promise.all(uploadPromises);
+      }
       setDialogOpen(false);
       setFormData({ case_number: '', title: '', client_name: '', case_type: '', description: '', status: 'open', assigned_users: [] });
+      setPendingFiles([]);
       queryCache.invalidatePattern('cases');
       queryCache.invalidatePattern('dashboard');
       fetchCases();
@@ -162,6 +183,30 @@ export default function CasesPage() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const handleAddFiles = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files).map(file => ({ file, tags: [] as string[] }));
+    setPendingFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleFileTag = (index: number, tag: string) => {
+    setPendingFiles(prev => prev.map((pf, i) => {
+      if (i !== index) return pf;
+      const tags = pf.tags.includes(tag) ? pf.tags.filter(t => t !== tag) : [...pf.tags, tag];
+      return { ...pf, tags };
+    }));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
   const toggleUserAssignment = (userId: string) => {
@@ -275,6 +320,58 @@ export default function CasesPage() {
                     </div>
                   </div>
                 )}
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-slate-600">Documents</Label>
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <div className="p-3 bg-slate-50 border-b border-slate-200">
+                      <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-slate-400 hover:bg-white transition-colors">
+                        <Upload className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm text-slate-500">Click to select files</span>
+                        <input type="file" multiple onChange={e => handleAddFiles(e.target.files)} className="hidden" disabled={creating} />
+                      </label>
+                    </div>
+                    {pendingFiles.length > 0 && (
+                      <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                        {pendingFiles.map((pf, idx) => (
+                          <div key={idx} className="p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium text-slate-700 truncate">{pf.file.name}</p>
+                                  <p className="text-[11px] text-slate-400">{formatFileSize(pf.file.size)}</p>
+                                </div>
+                              </div>
+                              <button type="button" onClick={() => removePendingFile(idx)} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {DOCUMENT_TAGS.map(tag => (
+                                <button
+                                  key={tag}
+                                  type="button"
+                                  onClick={() => toggleFileTag(idx, tag)}
+                                  className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                                    pf.tags.includes(tag)
+                                      ? 'bg-slate-900 text-white border-slate-900'
+                                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                                  }`}
+                                >
+                                  <Tag className="w-2.5 h-2.5" />
+                                  {tag}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {pendingFiles.length === 0 && (
+                      <p className="text-xs text-slate-400 px-3 py-2 text-center">No files selected</p>
+                    )}
+                  </div>
+                </div>
                 <Button type="submit" className="w-full bg-slate-900 hover:bg-slate-800" disabled={creating}>
                   {creating ? 'Creating...' : 'Create Case'}
                 </Button>

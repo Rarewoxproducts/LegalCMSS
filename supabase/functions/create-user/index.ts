@@ -57,8 +57,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { email, password, full_name, role } = await req.json();
-
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -69,6 +67,52 @@ Deno.serve(async (req: Request) => {
         },
       }
     );
+
+    if (req.method === "DELETE") {
+      const { user_id } = await req.json();
+
+      if (!user_id) {
+        return new Response(
+          JSON.stringify({ error: "user_id is required" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      if (user_id === currentUser.id) {
+        return new Response(
+          JSON.stringify({ error: "You cannot delete your own account" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
+
+      if (deleteError) {
+        return new Response(
+          JSON.stringify({ error: deleteError.message }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const { email, password, full_name, role, is_external, access_expires_at } = await req.json();
 
     const { data: authData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
@@ -106,6 +150,8 @@ Deno.serve(async (req: Request) => {
         id: authData.user.id,
         full_name,
         role,
+        is_external: is_external ?? false,
+        access_expires_at: access_expires_at ?? null,
       });
 
     if (profileError) {

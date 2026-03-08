@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Users, Search, Pencil, ShieldAlert, UserCog } from 'lucide-react';
+import { Plus, Users, Search, Pencil, ShieldAlert, UserCog, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { getRoleLabel } from '@/lib/utils';
 
@@ -30,6 +31,9 @@ export default function UsersPage() {
   const [editFormData, setEditFormData] = useState({ role: 'lawyer', is_external: false, access_expires_at: '' });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<UserWithEmail | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { if (profile?.role === 'admin') fetchUsers(); }, [profile]);
 
@@ -55,13 +59,19 @@ export default function UsersPage() {
     setError('');
     setCreating(true);
     try {
-      const response = await fetch('/api/admin/create-user', {
+      const { data: { session } } = await supabase.auth.getSession();
+      const edgeFnUrl = `${supabase.supabaseUrl}/functions/v1/create-user`;
+      const response = await fetch(edgeFnUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Apikey': supabase.supabaseKey,
+        },
         body: JSON.stringify({ email: formData.email, password: formData.password, full_name: formData.full_name, role: formData.role, is_external: formData.is_external, access_expires_at: formData.is_external && formData.access_expires_at ? formData.access_expires_at : null }),
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'Failed to create user');
+      if (!response.ok) throw new Error(result.error || result.message || `Request failed with status ${response.status}`);
       setDialogOpen(false);
       setFormData({ email: '', full_name: '', role: 'lawyer', password: '', is_external: false, access_expires_at: '' });
       fetchUsers();
@@ -72,16 +82,58 @@ export default function UsersPage() {
     }
   };
 
+  const [editError, setEditError] = useState('');
+  const [saving, setSaving] = useState(false);
+
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
+    setEditError('');
+    setSaving(true);
     try {
-      const { error } = await supabase.from('profiles').update({ role: editFormData.role, is_external: editFormData.is_external, access_expires_at: editFormData.is_external && editFormData.access_expires_at ? editFormData.access_expires_at : null }).eq('id', editingUser.id);
+      const { error, count } = await supabase
+        .from('profiles')
+        .update({
+          role: editFormData.role,
+          is_external: editFormData.is_external,
+          access_expires_at: editFormData.is_external && editFormData.access_expires_at ? editFormData.access_expires_at : null,
+        })
+        .eq('id', editingUser.id)
+        .select();
       if (error) throw error;
       setEditDialogOpen(false);
       fetchUsers();
     } catch (err: any) {
+      setEditError(err.message || 'Failed to update user');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deletingUser) return;
+    setDeleting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const edgeFnUrl = `${supabase.supabaseUrl}/functions/v1/create-user`;
+      const response = await fetch(edgeFnUrl, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Apikey': supabase.supabaseKey,
+        },
+        body: JSON.stringify({ user_id: deletingUser.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `Request failed with status ${response.status}`);
+      setDeleteDialogOpen(false);
+      setDeletingUser(null);
+      fetchUsers();
+    } catch (err: any) {
       alert(err.message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -245,9 +297,14 @@ export default function UsersPage() {
                         <p className="text-xs text-slate-500">{format(new Date(user.created_at), 'dd MMM yyyy')}</p>
                       </td>
                       <td className="px-5 py-4">
-                        <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)} className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openEditDialog(user)} className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => { setDeletingUser(user); setDeleteDialogOpen(true); }} className="h-7 w-7 p-0 text-slate-400 hover:text-red-600">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -310,7 +367,24 @@ export default function UsersPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-slate-800">{deletingUser?.full_name}</span>? This will permanently remove their account and all associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} disabled={deleting} className="bg-red-600 hover:bg-red-700 text-white">
+              {deleting ? 'Deleting...' : 'Delete User'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={editDialogOpen} onOpenChange={(open) => { setEditDialogOpen(open); if (!open) setEditError(''); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -320,6 +394,7 @@ export default function UsersPage() {
             <DialogDescription>Update role and access settings</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEditUser} className="space-y-4 mt-2">
+            {editError && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm border border-red-100">{editError}</div>}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-slate-600">Role</Label>
               <Select value={editFormData.role} onValueChange={v => setEditFormData({...editFormData, role: v})}>
@@ -345,8 +420,8 @@ export default function UsersPage() {
               </div>
             )}
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-              <Button type="submit" className="bg-slate-900 hover:bg-slate-800">Save Changes</Button>
+              <Button type="button" variant="outline" onClick={() => { setEditDialogOpen(false); setEditError(''); }}>Cancel</Button>
+              <Button type="submit" disabled={saving} className="bg-slate-900 hover:bg-slate-800">{saving ? 'Saving...' : 'Save Changes'}</Button>
             </div>
           </form>
         </DialogContent>

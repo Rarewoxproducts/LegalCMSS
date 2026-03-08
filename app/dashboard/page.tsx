@@ -206,6 +206,18 @@ export default function DashboardPage() {
     return colors[type] || colors.other;
   };
 
+  const getTypeTagStyle = (type: string) => {
+    const styles: Record<string, string> = {
+      task: 'bg-blue-50 text-blue-600 border-blue-100',
+      event: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+      hearing: 'bg-red-50 text-red-600 border-red-100',
+      meeting: 'bg-amber-50 text-amber-600 border-amber-100',
+      deadline: 'bg-orange-50 text-orange-600 border-orange-100',
+      other: 'bg-slate-50 text-slate-500 border-slate-200',
+    };
+    return styles[type] || styles.other;
+  };
+
   const statCards = [
     {
       title: 'Total Cases',
@@ -322,7 +334,12 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{item.title}</p>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold rounded border capitalize flex-shrink-0 ${getTypeTagStyle(item.type)}`}>
+                          {item.type}
+                        </span>
+                      </div>
                       <p className="text-[11px] text-slate-400 mt-0.5 truncate">
                         {item.case_title ? `Case: ${item.case_title}` : item.location || 'No location'}
                       </p>

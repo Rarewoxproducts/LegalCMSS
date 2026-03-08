@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export const DOCUMENT_TAGS = [
+  'Originating processes',
+  'Agreement',
+  'Evidence',
+  'Correspondence',
+  'Court filing',
+  'Misc.',
+] as const;
+
 const roleLabelMap: Record<string, string> = {
   admin: 'Head Legal',
   lawyer: 'Counsel',

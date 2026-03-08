@@ -26,10 +26,12 @@ import {
 import { FileText, Search, Upload, Download, Trash2, Tag, FolderOpen, Calendar, X } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { DOCUMENT_TAGS } from '@/lib/utils';
 
 interface DocumentWithCase extends CaseDocument {
   case_title?: string;
   case_number?: string;
+  uploader_name?: string;
 }
 
 interface Case { id: string; title: string; case_number: string; }
@@ -46,7 +48,7 @@ export default function DocumentsPage() {
   const [typeFilter, setTypeFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFiles, setUploadFiles] = useState<Array<{ file: File; tags: string[] }>>([]);
   const [uploadCaseId, setUploadCaseId] = useState('');
   const [uploading, setUploading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -112,7 +114,7 @@ export default function DocumentsPage() {
 
       let query = supabase
         .from('case_documents')
-        .select('*, cases:case_id(title, case_number)')
+        .select('*, cases:case_id(title, case_number), uploader:uploaded_by(full_name)')
         .order('created_at', { ascending: false });
 
       if (caseIds) query = query.in('case_id', caseIds);
@@ -124,6 +126,7 @@ export default function DocumentsPage() {
         ...d,
         case_title: d.cases?.title,
         case_number: d.cases?.case_number,
+        uploader_name: d.uploader?.full_name,
       }));
       setDocuments(docs);
     } catch (err) {
@@ -151,31 +154,55 @@ export default function DocumentsPage() {
     }
   };
 
+  const handleAddUploadFiles = (files: FileList | null) => {
+    if (!files) return;
+    const newFiles = Array.from(files).map(file => ({ file, tags: [] as string[] }));
+    setUploadFiles(prev => [...prev, ...newFiles]);
+  };
+
+  const removeUploadFile = (index: number) => {
+    setUploadFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const toggleUploadFileTag = (index: number, tag: string) => {
+    setUploadFiles(prev => prev.map((pf, i) => {
+      if (i !== index) return pf;
+      const tags = pf.tags.includes(tag) ? pf.tags.filter(t => t !== tag) : [...pf.tags, tag];
+      return { ...pf, tags };
+    }));
+  };
+
   const handleUpload = async () => {
-    if (!uploadFile || !uploadCaseId || !profile) return;
+    if (uploadFiles.length === 0 || !uploadCaseId || !profile) return;
     setUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result as string;
-        const { error } = await supabase.from('case_documents').insert({
-          case_id: uploadCaseId,
-          file_name: uploadFile.name,
-          file_url: base64,
-          file_size: uploadFile.size,
-          file_type: uploadFile.type,
-          uploaded_by: profile.id,
-        });
-        if (error) throw error;
-        setUploadDialogOpen(false);
-        setUploadFile(null);
-        setUploadCaseId('');
-        fetchDocuments();
-        setUploading(false);
-      };
-      reader.readAsDataURL(uploadFile);
+      const uploadPromises = uploadFiles.map(pf => new Promise<void>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const { error } = await supabase.from('case_documents').insert({
+              case_id: uploadCaseId,
+              file_name: pf.file.name,
+              file_url: reader.result as string,
+              file_size: pf.file.size,
+              file_type: pf.file.type,
+              uploaded_by: profile.id,
+              tags: pf.tags.length > 0 ? pf.tags : null,
+            });
+            if (error) reject(error); else resolve();
+          } catch (e) { reject(e); }
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(pf.file);
+      }));
+      await Promise.all(uploadPromises);
+      setUploadDialogOpen(false);
+      setUploadFiles([]);
+      setUploadCaseId('');
+      fetchDocuments();
     } catch (err) {
       console.error(err);
+    } finally {
       setUploading(false);
     }
   };
@@ -273,10 +300,10 @@ export default function DocumentsPage() {
                 Upload Document
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Upload Document</DialogTitle>
-                <DialogDescription>Attach a file to a case</DialogDescription>
+                <DialogTitle>Upload Documents</DialogTitle>
+                <DialogDescription>Select a case, then add one or more files with tags</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-2">
                 <div className="space-y-1.5">
@@ -294,22 +321,54 @@ export default function DocumentsPage() {
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-slate-600">File *</Label>
-                  <input
-                    type="file"
-                    onChange={e => setUploadFile(e.target.files?.[0] || null)}
-                    className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-900 file:text-white hover:file:bg-slate-800 cursor-pointer"
-                  />
-                  {uploadFile && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      {uploadFile.name} — {formatFileSize(uploadFile.size)}
-                    </p>
-                  )}
+                  <Label className="text-xs font-medium text-slate-600">Files *</Label>
+                  <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-slate-400 hover:bg-slate-50 transition-colors">
+                    <Upload className="w-4 h-4 text-slate-400" />
+                    <span className="text-sm text-slate-500">Click to select files</span>
+                    <input type="file" multiple onChange={e => handleAddUploadFiles(e.target.files)} className="hidden" disabled={uploading} />
+                  </label>
                 </div>
+                {uploadFiles.length > 0 && (
+                  <div className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                    {uploadFiles.map((pf, idx) => (
+                      <div key={idx} className="p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-slate-700 truncate">{pf.file.name}</p>
+                              <p className="text-[11px] text-slate-400">{formatFileSize(pf.file.size)}</p>
+                            </div>
+                          </div>
+                          <button onClick={() => removeUploadFile(idx)} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {DOCUMENT_TAGS.map(tag => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => toggleUploadFileTag(idx, tag)}
+                              className={`inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded-full border transition-colors ${
+                                pf.tags.includes(tag)
+                                  ? 'bg-slate-900 text-white border-slate-900'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                              }`}
+                            >
+                              <Tag className="w-2.5 h-2.5" />
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button variant="outline" onClick={() => { setUploadDialogOpen(false); setUploadFile(null); setUploadCaseId(''); }}>Cancel</Button>
-                  <Button onClick={handleUpload} disabled={!uploadFile || !uploadCaseId || uploading} className="bg-slate-900 hover:bg-slate-800">
-                    {uploading ? 'Uploading...' : 'Upload'}
+                  <Button variant="outline" onClick={() => { setUploadDialogOpen(false); setUploadFiles([]); setUploadCaseId(''); }}>Cancel</Button>
+                  <Button onClick={handleUpload} disabled={uploadFiles.length === 0 || !uploadCaseId || uploading} className="bg-slate-900 hover:bg-slate-800">
+                    {uploading ? 'Uploading...' : `Upload ${uploadFiles.length > 0 ? uploadFiles.length + ' ' : ''}File${uploadFiles.length !== 1 ? 's' : ''}`}
                   </Button>
                 </div>
               </div>
@@ -409,6 +468,7 @@ export default function DocumentsPage() {
                   <th className="px-5 py-3 font-semibold hidden sm:table-cell">Case</th>
                   <th className="px-5 py-3 font-semibold hidden md:table-cell">Size</th>
                   <th className="px-5 py-3 font-semibold hidden lg:table-cell">Uploaded</th>
+                  <th className="px-5 py-3 font-semibold hidden md:table-cell">Uploaded By</th>
                   <th className="px-5 py-3 font-semibold hidden lg:table-cell">Tags</th>
                   <th className="px-5 py-3 font-semibold">Actions</th>
                 </tr>
@@ -442,6 +502,9 @@ export default function DocumentsPage() {
                     </td>
                     <td className="px-5 py-4 hidden lg:table-cell">
                       <p className="text-sm text-slate-500">{format(new Date(doc.created_at), 'dd MMM yyyy')}</p>
+                    </td>
+                    <td className="px-5 py-4 hidden md:table-cell">
+                      <p className="text-sm text-slate-600">{doc.uploader_name || '—'}</p>
                     </td>
                     <td className="px-5 py-4 hidden lg:table-cell">
                       {doc.tags && doc.tags.length > 0 ? (
