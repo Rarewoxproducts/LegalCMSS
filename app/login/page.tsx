@@ -7,13 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Scale } from 'lucide-react';
+import { Scale, Download } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
   const { signIn, user, loading } = useAuth();
   const router = useRouter();
 
@@ -22,6 +24,33 @@ export default function LoginPage() {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+      setIsInstalled(true);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const { outcome } = await installPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setInstallPrompt(null);
+        setIsInstalled(true);
+      }
+    } else {
+      alert('To install: open your browser menu and select "Add to Home Screen" or "Install App".');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,7 +75,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-4">
       <Card className="w-full max-w-md mx-4">
         <CardHeader className="space-y-4 text-center">
           <div className="flex justify-center">
@@ -103,6 +132,21 @@ export default function LoginPage() {
           </form>
         </CardContent>
       </Card>
+
+      {!isInstalled && (
+        <div className="w-full max-w-md mx-4">
+          <button
+            onClick={handleInstall}
+            className="w-full flex items-center justify-center gap-2.5 px-5 py-3 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-medium shadow-sm hover:bg-slate-50 hover:border-slate-300 hover:shadow transition-all"
+          >
+            <Download className="w-4 h-4 text-slate-500" />
+            Install Application
+          </button>
+          <p className="text-center text-xs text-slate-400 mt-2">
+            Install for quick access from your home screen
+          </p>
+        </div>
+      )}
     </div>
   );
 }
